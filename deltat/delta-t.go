@@ -1,5 +1,6 @@
 // Package deltat ("delta T") implements simple "elapsed-time" loop helpers.
-// The "delta"
+// The "delta" can be any number type, and the calculation provided arbitrarily.
+// deltat also provides basic implementations of this
 package deltat
 
 import (
