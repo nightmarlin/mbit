@@ -4,5 +4,7 @@ install-tinygo-macos:
 
 deploy-scroller:
 	$(MAKE) -C ./cmd/scroller deploy
+deploy-showall:
+	$(MAKE) -C ./cmd/showall deploy
 
 .PHONY: deploy build build-stripped
