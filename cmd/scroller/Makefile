@@ -1,4 +1,7 @@
 deploy:
 	tinygo flash -target=microbit ./main.go
 
-.PHONY: deploy
+build:
+	tinygo build -target=microbit -o=scroller.hex ./main.go
+
+.PHONY: deploy build
