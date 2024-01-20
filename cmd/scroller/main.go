@@ -16,6 +16,19 @@ const tps float32 = 15
 
 var tailLen uint8 = 4
 
+func trySendOnButtonPress[T any](btn machine.Pin, c chan<- T, msg T) error {
+	btn.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
+	return btn.SetInterrupt(
+		machine.PinFalling,
+		func(machine.Pin) {
+			select {
+			case c <- msg:
+			default:
+			}
+		},
+	)
+}
+
 func main() {
 	display := mbitm.New()
 	display.Configure(mbitm.Config{})
@@ -27,30 +40,10 @@ func main() {
 	}
 
 	tailLenDeltaChan := make(chan int8, 1)
-
-	machine.BUTTONA.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
-	if err := machine.BUTTONA.SetInterrupt(
-		machine.PinFalling,
-		func(p machine.Pin) {
-			select {
-			case tailLenDeltaChan <- -1:
-			default:
-			}
-		},
-	); err != nil {
+	if err := trySendOnButtonPress(machine.BUTTONA, tailLenDeltaChan, -1); err != nil {
 		return
 	}
-
-	machine.BUTTONB.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
-	if err := machine.BUTTONB.SetInterrupt(
-		machine.PinFalling,
-		func(p machine.Pin) {
-			select {
-			case tailLenDeltaChan <- 1:
-			default:
-			}
-		},
-	); err != nil {
+	if err := trySendOnButtonPress(machine.BUTTONB, tailLenDeltaChan, 1); err != nil {
 		return
 	}
 
@@ -84,15 +77,15 @@ func main() {
 			}
 
 			select {
-			case deltaLen := <-tailLenDeltaChan:
-				if deltaLen < 0 {
+			case deltaTailLen := <-tailLenDeltaChan:
+				if deltaTailLen < 0 {
 					// safely cast negatives to positive uint and subtract
-					tailLen -= uint8(-1 * deltaLen)
+					tailLen -= uint8(-1 * deltaTailLen)
 					if tailLen < 1 {
 						tailLen = 1
 					}
 				} else {
-					tailLen += uint8(deltaLen)
+					tailLen += uint8(deltaTailLen)
 					if tailLen >= uint8(displayLen) {
 						tailLen = uint8(displayLen) - 1
 					}

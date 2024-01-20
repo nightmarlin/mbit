@@ -4,6 +4,7 @@
 package deltat
 
 import (
+	"runtime"
 	"time"
 
 	"golang.org/x/exp/constraints"
@@ -46,6 +47,7 @@ func Loop[D constraints.Integer | constraints.Float](
 		if !do(now, elapsed) {
 			return
 		}
+		runtime.Gosched() // allow other routines a chance to run
 	}
 }
 
