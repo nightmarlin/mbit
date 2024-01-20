@@ -20,19 +20,21 @@ func main() {
 	display := mbitm.New()
 	display.Configure(mbitm.Config{})
 
-	maxW, maxH := display.Size()
-	dLen := maxW * maxH
-	if dLen == 0 || dLen <= int16(tailLen) {
+	displayMaxW, displayMaxH := display.Size()
+	displayLen := displayMaxW * displayMaxH
+	if displayLen == 0 || displayLen <= int16(tailLen) {
 		return // exit - nowhere to draw
 	}
+
+	tailLenDeltaChan := make(chan int8, 1)
 
 	machine.BUTTONA.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
 	if err := machine.BUTTONA.SetInterrupt(
 		machine.PinFalling,
 		func(p machine.Pin) {
-			// todo: changing qlen is slightly racy - fix that
-			if tailLen != 1 {
-				tailLen--
+			select {
+			case tailLenDeltaChan <- -1:
+			default:
 			}
 		},
 	); err != nil {
@@ -43,8 +45,9 @@ func main() {
 	if err := machine.BUTTONB.SetInterrupt(
 		machine.PinFalling,
 		func(p machine.Pin) {
-			if tailLen < uint8(dLen) {
-				tailLen++
+			select {
+			case tailLenDeltaChan <- 1:
+			default:
 			}
 		},
 	); err != nil {
@@ -57,23 +60,21 @@ func main() {
 		deltat.DefaultClock(),
 		deltat.ByTick(tps),
 		func(_ time.Time, elapsedTicks float32) bool {
-			curTailLen := tailLen // minimise raciness by reading tailLen at start of loop
-
-			brightnessDiv := uint8(int8(255 / curTailLen))
+			brightnessDiv := uint8(int8(255 / tailLen))
 			display.ClearDisplay()
 
-			for i := uint8(0); i < curTailLen; i++ {
+			for i := uint8(0); i < tailLen; i++ {
 				c := int16(cursor) - int16(i)
 				if c < 0 {
-					c = dLen - int16(curTailLen-i)
+					c = displayLen - int16(tailLen-i)
 				}
 
 				display.SetPixel(
-					c%maxH,
-					c/maxH,
+					c%displayMaxH,
+					c/displayMaxH,
 					color.RGBA{
 						R: 255, G: 255, B: 255,
-						A: 255 - brightnessDiv*(curTailLen-i),
+						A: 255 - brightnessDiv*(tailLen-i),
 					},
 				)
 			}
@@ -82,9 +83,26 @@ func main() {
 				return false
 			}
 
+			select {
+			case deltaLen := <-tailLenDeltaChan:
+				if deltaLen < 0 {
+					// safely cast negatives to positive uint and subtract
+					tailLen -= uint8(-1 * deltaLen)
+					if tailLen < 1 {
+						tailLen = 1
+					}
+				} else {
+					tailLen += uint8(deltaLen)
+					if tailLen >= uint8(displayLen) {
+						tailLen = uint8(displayLen) - 1
+					}
+				}
+			default:
+			}
+
 			cursor += elapsedTicks
-			for cursor >= float32(dLen) {
-				cursor -= float32(dLen)
+			for cursor >= float32(displayLen) {
+				cursor -= float32(displayLen)
 			}
 			return true
 		},
