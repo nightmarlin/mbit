@@ -1,7 +1,9 @@
+TARGET := $(shell go run github.com/nightmarlin/mbitselect@v1 -fallback=microbit)
+
 deploy:
-	tinygo flash -target=microbit ./main.go
+	tinygo flash -target=$(TARGET) ./main.go
 
 build:
-	tinygo build -target=microbit -o=scroller.hex ./main.go
+	tinygo build -target=$(TARGET) -o=scroller.hex ./main.go
 
 .PHONY: deploy build
