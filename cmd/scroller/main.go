@@ -9,25 +9,13 @@ import (
 
 	mbitm "tinygo.org/x/drivers/microbitmatrix"
 
+	"github.com/nightmarlin/mbit/buttons"
 	"github.com/nightmarlin/mbit/deltat"
 )
 
 const tps float32 = 15
 
 var tailLen uint8 = 4
-
-func trySendOnButtonPress[T any](btn machine.Pin, c chan<- T, msg T) error {
-	btn.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
-	return btn.SetInterrupt(
-		machine.PinFalling,
-		func(machine.Pin) {
-			select {
-			case c <- msg:
-			default:
-			}
-		},
-	)
-}
 
 func main() {
 	display := mbitm.New()
@@ -40,10 +28,10 @@ func main() {
 	}
 
 	tailLenDeltaChan := make(chan int8, 1)
-	if err := trySendOnButtonPress(machine.BUTTONA, tailLenDeltaChan, -1); err != nil {
+	if err := buttons.TrySendOnPress(machine.BUTTONA, tailLenDeltaChan, -1); err != nil {
 		return
 	}
-	if err := trySendOnButtonPress(machine.BUTTONB, tailLenDeltaChan, 1); err != nil {
+	if err := buttons.TrySendOnPress(machine.BUTTONB, tailLenDeltaChan, 1); err != nil {
 		return
 	}
 
